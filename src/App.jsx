@@ -71,7 +71,6 @@ function App() {
     );
 }
 
-// [수정됨] 회원가입 에러 처리 및 데이터 매핑 수정
 function LoginScreen({ onLogin }) {
     const [isSignup, setIsSignup] = useState(false);
     const [form, setForm] = useState({
@@ -90,12 +89,11 @@ function LoginScreen({ onLogin }) {
         e.preventDefault();
         const endpoint = isSignup ? '/register' : '/login';
 
-        // [중요] 백엔드(Python) 변수명(snake_case)에 맞춰서 데이터 전송
         const body = isSignup ?
             {
                 username: form.username,
                 password: form.password,
-                full_name: form.fullName, // JS: fullName -> Python: full_name
+                full_name: form.fullName,
                 phone: form.phone,
                 address: form.address
             } :
@@ -121,7 +119,6 @@ function LoginScreen({ onLogin }) {
                     onLogin({ username: data.username, role: data.role });
                 }
             } else {
-                // [수정] 에러 메시지가 객체일 경우 문자열로 변환하여 표시 ([object Object] 방지)
                 const errorMsg = typeof data.detail === 'string'
                     ? data.detail
                     : JSON.stringify(data.detail);
@@ -154,12 +151,7 @@ function LoginScreen({ onLogin }) {
                 <p onClick={() => setIsSignup(!isSignup)} className="switch-text">
                     {isSignup ? "로그인하러 가기" : "회원가입 하기"}
                 </p>
-
-                {!isSignup && (
-                    <div className="help-text">
-                        테스트: admin/admin, user/user
-                    </div>
-                )}
+                {!isSignup && <div className="help-text">테스트: admin/admin, user/user</div>}
             </div>
         </div>
     );
@@ -213,7 +205,6 @@ function AdminDashboard({ onLogout, onRefresh }) {
     );
 }
 
-// [수정됨] Basic Training(상단) / Offline Quest(하단) 순서 변경
 function ThemeList({ themes, username, onSelect, onMyBookings, onLogout }) {
     const offline = Object.values(themes).filter(t => t.category === 'offline');
     const basic = Object.values(themes).filter(t => t.category === 'basic');
@@ -224,8 +215,6 @@ function ThemeList({ themes, username, onSelect, onMyBookings, onLogout }) {
                 <div className="top-row"><span>Hi, <b>{username}</b></span><div><button onClick={onMyBookings}>My Trips</button><button onClick={onLogout} className="logout">Out</button></div></div>
                 <h1>✈️ Quest K</h1>
             </div>
-
-            {/* 1. Basic Training (상단) */}
             <div className="section">
                 <h3>📚 Basic Training (AI Tutor)</h3>
                 <div className="grid">
@@ -236,8 +225,6 @@ function ThemeList({ themes, username, onSelect, onMyBookings, onLogout }) {
                     ))}
                 </div>
             </div>
-
-            {/* 2. Offline Quests (하단) */}
             <div className="section">
                 <h3>✨ Offline Quests (Real Trip)</h3>
                 {offline.map(t => (
@@ -314,7 +301,7 @@ function VoiceChat({ theme, onBack }) {
             mediaRef.current.start(100);
             setIsRec(true);
             chunksRef.current = [];
-        } catch { alert("Mic needed"); }
+        } catch { alert("마이크 권한이 필요합니다."); }
     };
 
     const stopRec = () => {
@@ -340,10 +327,37 @@ function VoiceChat({ theme, onBack }) {
         try {
             const res = await fetch('http://localhost:8000/talk', { method: 'POST', body: fd });
             const data = await res.json();
+
             if (data.audio_base64) {
-                setChatLog(p => [...p, { role: 'user', text: data.user_text }, { role: 'ai', ...data, audio: `data:audio/mp3;base64,${data.audio_base64}` }]);
+                const struct = data.structured_data || {};
+                const native = struct.nativeSentences ? struct.nativeSentences[0] : {};
+                const feedback = struct.feedbackStructure || {};
+
+                const aiMessage = {
+                    role: 'ai',
+                    scenarioType: struct.scenarioType,
+                    difficulty: struct.difficultyLevel,
+                    korean_text: native.korean,
+                    romanized: native.romanized,
+                    eng_meaning: native.english,
+                    metadata: native.metadata,
+                    explanation: struct.kor_explanation,
+                    score: feedback.pronunciationScore,
+                    intonation: feedback.intonationCheck,
+                    audio: `data:audio/mp3;base64,${data.audio_base64}`
+                };
+
+                setChatLog(p => [...p, { role: 'user', text: data.user_text }, aiMessage]);
             }
-        } catch { alert("AI Error"); } finally { setIsLoading(false); }
+        } catch { alert("AI 처리 중 오류가 발생했습니다."); } finally { setIsLoading(false); }
+    };
+
+    // [중요] 객체가 와도 깨지지 않게 변환해주는 함수
+    const renderSafe = (content) => {
+        if (typeof content === 'object' && content !== null) {
+            return JSON.stringify(content);
+        }
+        return content;
     };
 
     return (
@@ -354,12 +368,35 @@ function VoiceChat({ theme, onBack }) {
                     <div key={i} className={`msg ${m.role}`}>
                         <div className="bubble">
                             {m.role === 'ai' ? (
-                                <><div className="sound-badge">{m.phonetic}</div><div className="kor">{m.korean_text}</div><div className="eng">{m.eng_meaning}</div><div className="expl">{m.kor_explanation}</div><audio controls autoPlay src={m.audio} className="audio-player"/></>
-                            ) : m.text}
+                                <div className="ai-content">
+                                    <div className="meta-badges">
+                                        <span className="badge type">{m.scenarioType}</span>
+                                        <span className="badge level">Lv.{m.difficulty}</span>
+                                        <span className="badge score">Score: {m.score}</span>
+                                    </div>
+                                    <div className="main-sent">
+                                        <div className="kor">{m.korean_text}</div>
+                                        <div className="rom">{m.romanized}</div>
+                                    </div>
+                                    <div className="details">
+                                        <p className="eng">"{m.eng_meaning}"</p>
+                                        {/* metadata 안전하게 출력 */}
+                                        <p className="context">💡 {renderSafe(m.metadata)}</p>
+                                        <div className="feedback-box">
+                                            <small>🗣️ Intonation: {m.intonation}</small>
+                                            <p className="expl">{m.explanation}</p>
+                                        </div>
+                                    </div>
+                                    <audio controls autoPlay src={m.audio} className="audio-player"/>
+                                    <div className="seq-info">🎵 Auto-Loop: Slow x2 → Normal x2 → Fast x1</div>
+                                </div>
+                            ) : (
+                                <span className="user-text">{m.text}</span>
+                            )}
                         </div>
                     </div>
                 ))}
-                {isLoading && <div className="msg ai"><div className="bubble loading">Thinking... 🧠</div></div>}
+                {isLoading && <div className="msg ai"><div className="bubble loading">Thinking & Sequencing Audio... 🧠</div></div>}
                 <div ref={chatEndRef} />
             </div>
             <div className="chat-ctrl"><button onMouseDown={startRec} onMouseUp={stopRec} className={isRec ? 'rec' : ''}>{isRec ? 'Listening...' : '🎙️ Hold to Speak'}</button></div>
@@ -367,4 +404,4 @@ function VoiceChat({ theme, onBack }) {
     );
 }
 
-export default App;
+export default App; // [중요] 이 줄이 없으면 main.jsx에서 에러가 납니다!
