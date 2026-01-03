@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
-// 폭죽 컴포넌트
 function Confetti() {
     const colors = ['#a864fd', '#29cdff', '#78ff44', '#ff718d', '#fdff6a'];
     return (
@@ -25,9 +24,7 @@ function App() {
     const [view, setView] = useState('login');
 
     useEffect(() => {
-        if (view === 'list') {
-            fetch('http://localhost:8000/themes').then(r=>r.json()).then(setThemes).catch(e=>console.log(e));
-        }
+        if(view==='list') fetch('http://localhost:8000/themes').then(r=>r.json()).then(setThemes).catch(console.error);
     }, [view]);
 
     const handleLogin = (u) => { setUser(u); setView('list'); };
@@ -36,7 +33,12 @@ function App() {
     return (
         <div className="container">
             {view === 'login' && <LoginScreen onLogin={handleLogin} />}
-            {user && view === 'list' && <ThemeList themes={themes} username={user.username} onSelect={(id)=>{ const t = themes[id]; setSelectedTheme({...t, id}); setView(t.category === 'offline' ? 'detail' : 'chat'); }} onMenu={(m)=>setView(m)} onLogout={handleLogout} />}
+            {user && view === 'list' && (
+                <ThemeList themes={themes} username={user.username}
+                           onSelect={(id)=>{ const t = themes[id]; setSelectedTheme({...t, id}); setView(t.category === 'offline' ? 'detail' : 'chat'); }}
+                           onMenu={(m)=>setView(m)} onLogout={handleLogout}
+                />
+            )}
             {user && view === 'report' && <ReportScreen username={user.username} onBack={()=>setView('list')} />}
             {user && view === 'bookings' && <BookingListScreen username={user.username} onBack={()=>setView('list')} />}
             {user && view === 'detail' && selectedTheme && <ProductDetail theme={selectedTheme} username={user.username} onBack={()=>setView('list')} />}
@@ -93,15 +95,68 @@ function BookingListScreen({ username, onBack }) {
     return (<div className="screen"><div className="q-header"><button onClick={onBack}>←</button><h2>Bookings</h2></div><ul className="log-list">{list.length===0?<p>No bookings</p>:list.map(b=><li key={b.id} className="log-item"><div><b>{b.theme_title}</b><span>{b.reserved_date}</span></div><button className="btn-cancel" onClick={()=>cancel(b.id)}>Cancel</button></li>)}</ul></div>);
 }
 
+// [수정] Report Screen UI 개선
 function ReportScreen({ username, onBack }) {
-    const [logs, setLogs] = useState([]);
-    useEffect(() => { fetch(`http://localhost:8000/reports/${username}`).then(r=>r.json()).then(setLogs); }, [username]);
-    const graphData = [...logs].reverse();
+    const [data, setData] = useState({ logs: [], graph: [], total: 0 });
+    const [page, setPage] = useState(1);
+
+    useEffect(() => {
+        fetch(`http://localhost:8000/reports/${username}?page=${page}&limit=5`)
+            .then(r=>r.json()).then(setData);
+    }, [username, page]);
+
+    const graphData = [...(data.graph || [])].reverse();
+    // 날짜 포맷
+    const fmt = (d) => new Date(d).toLocaleString('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+    const totalPages = Math.ceil(data.total / 5);
+
     return (
         <div className="screen">
-            <div className="q-header"><button onClick={onBack}>←</button><h2>Analysis</h2></div>
-            <div className="chart-box">{graphData.map((l,i) => (<div key={i} className="bar-group"><div className="bar" style={{height: `${l.tech_score}%`}}></div><span className="bar-label">{l.tech_score}</span></div>))}</div>
-            <ul className="log-list">{logs.map((l,i)=><li key={i} className="log-item"><div><b>{l.theme_id}</b><small>{new Date(l.created_at).toLocaleDateString()}</small></div><div className="score">{l.tech_score}</div></li>)}</ul>
+            <div className="q-header"><button onClick={onBack}>←</button><h2>Analysis Report</h2></div>
+
+            {/* 그래프 */}
+            <div className="chart-box">
+                {graphData.map((l,i) => (
+                    <div key={i} className="bar-group">
+                        <div className="bar" style={{height: `${Math.max(l.tech_score, 5)}%`}}></div>
+                        <span className="bar-label">{l.tech_score}</span>
+                    </div>
+                ))}
+            </div>
+
+            {/* 리스트 (카드형) */}
+            <ul className="log-list">
+                {data.logs.map((l,i) => (
+                    <li key={i} className="report-card">
+                        <div className="report-header">
+                            <span className="report-theme">{l.theme_id}</span>
+                            <span className="report-date">{fmt(l.created_at)}</span>
+                        </div>
+                        <div className="report-body-text">
+                            "{l.user_text}"
+                        </div>
+                        <div className="report-footer">
+                            <span className="score-badge" style={{
+                                backgroundColor: l.tech_score >= 80 ? '#20C997' : (l.tech_score >= 50 ? '#FFD43B' : '#FA5252'),
+                                color: l.tech_score >= 50 ? '#333' : '#fff'
+                            }}>
+                                Score: {l.tech_score}
+                            </span>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+
+            {/* 페이징 */}
+            <div className="pagination">
+                <button disabled={page===1} onClick={()=>setPage(p=>p-1)}>&lt; Prev</button>
+                <span className="page-num">{page} / {totalPages || 1}</span>
+                <button disabled={page===totalPages} onClick={()=>setPage(p=>p+1)}>Next &gt;</button>
+            </div>
         </div>
     );
 }
@@ -109,7 +164,6 @@ function ReportScreen({ username, onBack }) {
 function ProductDetail({ theme, username, onBack }) {
     const [form, setForm] = useState({ date: '', people: 1 });
     const book = async () => { if(!form.date) return alert("Select Date"); await fetch('http://localhost:8000/book', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, theme_id: theme.id, ...form}) }); alert("Success"); onBack(); };
-    // [수정] 이미지 경로가 없으면 기본값 사용
     const bgUrl = theme.image_url && theme.image_url.startsWith('http') ? theme.image_url : 'https://via.placeholder.com/400';
     return (
         <div className="screen detail-screen">
@@ -129,27 +183,39 @@ function VoiceChat({ theme, username, onBack }) {
     const [loading, setLoading] = useState(false);
     const [questTarget, setQuestTarget] = useState(null);
     const [showConfetti, setShowConfetti] = useState(false);
+    const [voices, setVoices] = useState([]);
 
     const media = useRef(null);
     const chunks = useRef([]);
     const endRef = useRef(null);
     const audioRefs = useRef({});
 
-    useEffect(() => endRef.current?.scrollIntoView({behavior:"smooth"}), [chat, loading]);
+    useEffect(() => {
+        const load = () => setVoices(window.speechSynthesis.getVoices());
+        load(); window.speechSynthesis.onvoiceschanged = load;
+        endRef.current?.scrollIntoView({behavior:"smooth"});
+    }, [chat, loading]);
+
+    const getMimeType = () => {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+        if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+        return 'audio/mp4';
+    };
 
     const start = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            media.current = new MediaRecorder(stream);
-            media.current.ondataavailable = e => chunks.current.push(e.data);
+            const mime = getMimeType();
+            media.current = new MediaRecorder(stream, { mimeType: mime });
+            media.current.ondataavailable = e => { if (e.data.size > 0) chunks.current.push(e.data); };
             media.current.onstop = send;
             media.current.start();
             setIsRec(true);
             chunks.current = [];
-        } catch { alert("Mic Error"); }
+        } catch (err) { alert("Mic Error: " + err.message); }
     };
 
-    const stop = () => { if(media.current) media.current.stop(); setIsRec(false); setLoading(true); };
+    const stop = () => { if(media.current && media.current.state !== 'inactive') { media.current.stop(); setIsRec(false); setLoading(true); } };
 
     const handleQuest = async () => {
         setLoading(true);
@@ -164,9 +230,10 @@ function VoiceChat({ theme, username, onBack }) {
 
     const send = async () => {
         if (chunks.current.length === 0) { setLoading(false); return; }
-        const blob = new Blob(chunks.current, { type: 'audio/webm' });
+        const mime = media.current.mimeType;
+        const blob = new Blob(chunks.current, { type: mime });
         const fd = new FormData();
-        fd.append('file', blob, "audio.webm");
+        fd.append('file', blob, mime.includes('mp4') ? 'audio.mp4' : 'audio.webm');
         fd.append('theme_id', theme.id);
         fd.append('username', username);
         if (questTarget) fd.append('quest_target', questTarget);
@@ -174,28 +241,30 @@ function VoiceChat({ theme, username, onBack }) {
         try {
             const res = await fetch('http://localhost:8000/talk', { method: 'POST', body: fd });
             const data = await res.json();
-            if(data.audio_base64) {
-                const s = data.structured_data;
-                const success = questTarget && s.content_match && s.tech_score >= 30;
-                if (success) { setQuestTarget(null); setShowConfetti(true); setTimeout(()=>setShowConfetti(false), 4000); }
+            if(data.error) { alert(data.error); return; }
 
-                setChat(p => [...p, { role: 'user', text: data.user_text }, {
-                    role: 'ai', id: Date.now(), data: s, tech_score: s.tech_score, isSuccess: success, audio: `data:audio/mp3;base64,${data.audio_base64}`
-                }]);
-            } else { alert("Server Error"); }
+            const s = data.structured_data;
+            const success = questTarget && s.content_match && s.tech_score >= 30;
+            if (success) { setQuestTarget(null); setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+
+            const msg = { role: 'ai', id: Date.now(), data: s, tech_score: s.tech_score, isSuccess: success, audio: `data:audio/mp3;base64,${data.audio_base64}` };
+            setChat(p => [...p, { role: 'user', text: data.user_text }, msg]);
         } catch { alert("Net Error"); } finally { setLoading(false); }
     };
 
-    // [TTS] 문법/상황은 브라우저 영어 음성으로
-    const speakEnglish = (e, text) => {
-        e.stopPropagation();
+    const speak = (e, text, rate = 1.0, lang = 'ko-KR') => {
+        if(e) e.stopPropagation();
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'en-US';
+        u.lang = lang;
+        u.rate = rate;
+        if(lang === 'en-US') {
+            const enVoice = voices.find(v => v.lang.startsWith('en'));
+            if(enVoice) u.voice = enVoice;
+        }
         window.speechSynthesis.speak(u);
     };
 
-    // [Audio Control] 메인 한글 문장 속도 조절
     const setSpeed = (id, rate) => {
         const player = audioRefs.current[id];
         if(player) { player.playbackRate = rate; player.play(); }
@@ -211,10 +280,7 @@ function VoiceChat({ theme, username, onBack }) {
                         {m.role === 'ai' ? (
                             <div className={`ai-card ${m.isQuest ? 'quest-highlight' : ''}`}>
                                 <div className="ai-header">
-                                    <div className="tech-badge-container">
-                                        <div className="tech-badge"><span>📡 Score</span><strong>{m.data.tech_score}</strong></div>
-                                        <div className="tooltip-icon">❓<div className="tooltip-text"><h4>Deep Tech Analysis</h4><p>We analyze your <b>Voiceprint (MFCC)</b> & <b>Rhythm (DTW)</b> to match Native Speakers.</p></div></div>
-                                    </div>
+                                    <div className="tech-badge"><span>📡 Score</span><strong>{m.data.tech_score}</strong></div>
                                     {m.isSuccess && <span className="badge-success">🎉 SUCCESS!</span>}
                                     {m.isQuest && <span className="badge-quest-label">CHALLENGE</span>}
                                 </div>
@@ -223,26 +289,24 @@ function VoiceChat({ theme, username, onBack }) {
                                         <div className="kor">{m.data.korean}</div>
                                         <div className="rom">{m.data.romanized}</div>
                                     </div>
-
-                                    {/* 한글 메인 문장 (서버 오디오) */}
                                     <div className="audio-control-box">
                                         <div className="speed-btns">
                                             {[0.5, 1.0, 1.5, 2.0].map(r => <button key={r} onClick={()=>setSpeed(m.id, r)}>{r}x</button>)}
                                         </div>
                                         <audio ref={el => audioRefs.current[m.id] = el} src={m.audio} controls className="au-player" />
                                     </div>
-
                                     <div className="info-box">
                                         <div className="info-row"><span className="label">Meaning</span><p>{m.data.english}</p></div>
                                         <div className="info-row">
-                                            <div className="info-header"><span className="label">Grammar</span><button className="btn-speak-mini" onClick={(e)=>speakEnglish(e, m.data.grammar)}>🔊</button></div>
+                                            <div className="info-header"><span className="label">Grammar</span><button className="btn-speak-mini" onClick={(e)=>speak(e, m.data.grammar, 1.0, 'en-US')}>🔊</button></div>
                                             <p>{m.data.grammar}</p>
                                         </div>
                                         <div className="info-row">
-                                            <div className="info-header"><span className="label">Context</span><button className="btn-speak-mini" onClick={(e)=>speakEnglish(e, m.data.context)}>🔊</button></div>
+                                            <div className="info-header"><span className="label">Context</span><button className="btn-speak-mini" onClick={(e)=>speak(e, m.data.context, 1.0, 'en-US')}>🔊</button></div>
                                             <p>{m.data.context}</p>
                                         </div>
                                     </div>
+                                    {!m.isQuest && <p className="quest-guide">📣 <b>Tip:</b> Click 'Give me a Quest' to verify pronunciation!</p>}
                                 </div>
                             </div>
                         ) : (
