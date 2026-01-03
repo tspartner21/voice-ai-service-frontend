@@ -1,25 +1,14 @@
-/* 기본 레이아웃 */
 .container { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; border-left: 1px solid #eee; border-right: 1px solid #eee; display: flex; flex-direction: column; font-family: sans-serif; }
 .screen { padding: 15px; flex: 1; overflow-y: auto; }
 
-/* 로그인 */
+/* Login */
 .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; }
 .login-box { background: white; padding: 20px; border-radius: 10px; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .login-form input { display: block; width: 90%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; }
 .login-form button { width: 100%; padding: 12px; background: #007AFF; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
 .switch-text { text-align: center; color: #666; font-size: 13px; margin-top: 15px; cursor: pointer; text-decoration: underline; }
-.help-text { font-size: 11px; color: #999; text-align: center; margin-top: 20px; }
 
-/* 관리자 */
-.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.admin-tabs button { margin-right: 10px; padding: 5px 10px; background: #eee; border: none; border-radius: 5px; cursor: pointer; }
-.admin-tabs button.active { background: #333; color: white; }
-.product-form input, .product-form textarea { display: block; width: 90%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; }
-.btn-add { background: #4CAF50; color: white; padding: 10px; border: none; border-radius: 5px; width: 100%; font-weight: bold; cursor: pointer; }
-.booking-row { background: #f9f9f9; padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-.btn-del { background: #FF3B30; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
-
-/* 리스트 */
+/* List */
 .main-header { margin-bottom: 20px; }
 .top-row { display: flex; justify-content: space-between; font-size: 13px; color: #555; }
 .logout { margin-left: 5px; background: #eee; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; }
@@ -31,24 +20,7 @@
 .card-small { background: #f8f8f8; padding: 15px 5px; text-align: center; border-radius: 8px; font-size: 12px; cursor: pointer; }
 .card-small .icon { display: block; font-size: 24px; margin-bottom: 5px; }
 
-/* 상세/예약 */
-.detail-screen { padding: 0; position: relative; background: #fff; }
-.nav-back { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.5); color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; }
-.hero-img { height: 250px; background-size: cover; background-position: center; }
-.detail-body { padding: 20px; border-radius: 20px 20px 0 0; margin-top: -20px; background: white; position: relative; }
-.book-box { background: #f0f8ff; padding: 15px; border-radius: 10px; margin: 20px 0; }
-.book-box .row { display: flex; gap: 10px; margin-bottom: 10px; }
-.book-box input, .book-box select { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
-.book-box button { width: 100%; background: #FF385C; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-.ai-box { text-align: center; padding-top: 10px; border-top: 1px solid #eee; }
-.ai-box button { background: #007AFF; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; margin-top: 5px; }
-
-/* 내 예약 */
-.my-list { margin-top: 10px; }
-.booking-card { background: white; border: 1px solid #eee; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
-.badge-confirmed { background: #e8f5e9; color: #2e7d32; padding: 3px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; }
-
-/* 채팅 레이아웃 */
+/* Chat & UI Elements */
 .chat-screen { display: flex; flex-direction: column; background: #f5f5f5; }
 .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
 .msg { display: flex; }
@@ -57,31 +29,34 @@
 .user .bubble { background: #007AFF; color: white; }
 .user-text { font-size: 15px; }
 
-/* AI Structured Content Styles */
-.ai-content { text-align: left; }
-.meta-badges { display: flex; gap: 5px; margin-bottom: 10px; }
-.badge { font-size: 10px; padding: 3px 6px; border-radius: 4px; color: white; font-weight: bold; text-transform: uppercase; }
-.badge.type { background: #5c6bc0; }
-.badge.level { background: #ffa726; }
-.badge.score { background: #ef5350; }
+/* Deep Tech Badge & Tooltip */
+.tech-badge-container { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.tech-badge { flex: 1; background: #263238; color: #00e676; padding: 8px 12px; border-radius: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.tooltip-icon { position: relative; cursor: pointer; font-size: 18px; }
+.tooltip-text { visibility: hidden; width: 220px; background-color: #333; color: #fff; text-align: left; border-radius: 8px; padding: 12px; position: absolute; z-index: 10; top: 100%; right: 0; opacity: 0; transition: opacity 0.3s; font-size: 11px; line-height: 1.4; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.tooltip-icon:hover .tooltip-text { visibility: visible; opacity: 1; }
+.tooltip-text h4 { margin: 0 0 8px 0; color: #4fc3f7; font-size: 13px; border-bottom: 1px solid #555; padding-bottom: 4px; }
+.tooltip-text p { margin: 5px 0; }
 
-.main-sent { margin: 10px 0; border-left: 3px solid #007AFF; padding-left: 10px; }
-.main-sent .kor { font-size: 18px; color: #000; font-weight: 800; }
+/* Sentence Box & Play Button */
+.main-sent-box { display: flex; justify-content: space-between; align-items: flex-start; margin: 10px 0; border-left: 3px solid #007AFF; padding-left: 10px; }
+.main-sent { flex: 1; }
+.main-sent .kor { font-size: 18px; color: #000; font-weight: 800; line-height: 1.3; }
 .main-sent .rom { font-size: 12px; color: #888; margin-top: 4px; }
+.btn-text-play { background: transparent; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 8px; color: #007AFF; transition: all 0.2s; }
+.btn-text-play:hover { background-color: #e3f2fd; border-color: #007AFF; transform: scale(1.1); }
 
+/* Grammar & Audio Controls */
+.grammar-box { background: #e3f2fd; border-left: 3px solid #2196f3; padding: 8px; margin: 10px 0; border-radius: 4px; font-size: 12px; color: #1565c0; font-weight: bold; }
 .details .eng { font-style: italic; color: #555; margin-bottom: 5px; margin-top: 10px;}
-.details .context { font-size: 11px; color: #2e7d32; background: #e8f5e9; padding: 4px 6px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
-.feedback-box { background: #f0f4f8; padding: 10px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
-.feedback-box small { display: block; color: #d32f2f; margin-bottom: 4px; font-weight: bold; }
-.expl { color: #444; line-height: 1.4; }
-
-.audio-player { width: 100%; margin-top: 10px; height: 32px; }
-.seq-info { font-size: 10px; color: #aaa; text-align: center; margin-top: 5px; }
-
-/* 채팅 컨트롤 */
+.expl { color: #444; line-height: 1.4; font-size: 13px; }
+.audio-control-box { margin-top: 15px; background: #f0f4f8; padding: 10px; border-radius: 8px; text-align: center; }
+.audio-player { width: 100%; height: 32px; }
+.speed-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 8px; }
+.speed-btns button { background: white; border: 1px solid #ccc; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; min-width: 40px; }
+.speed-btns button:hover { background: #007AFF; color: white; border-color: #007AFF; }
 .chat-ctrl { background: white; padding: 15px; text-align: center; border-top: 1px solid #eee; }
 .chat-ctrl button { width: 100%; padding: 15px; border-radius: 30px; border: none; background: #007AFF; color: white; font-size: 16px; font-weight: bold; cursor: pointer; }
 .chat-ctrl button.rec { background: #ff3b30; animation: pulse 1s infinite; }
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
 .loading { font-style: italic; color: #888; animation: pulse 1.5s infinite; }
-@keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
