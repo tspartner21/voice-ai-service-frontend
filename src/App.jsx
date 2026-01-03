@@ -56,7 +56,7 @@ function ThemeList({ themes, username, onSelect, onMyBookings, onLogout }) {
 }
 function ProductDetail({ theme, username, onBack, onStartChat }) { return (<div className="screen detail-screen"><button className="nav-back" onClick={onBack}>←</button><div className="hero-img" style={{backgroundImage: `url(${theme.image_url || 'https://via.placeholder.com/400'})`}}></div><div className="detail-body"><h1>{theme.title}</h1><p className="price">{theme.price}</p><p className="desc">{theme.desc}</p><div className="ai-box"><button onClick={onStartChat}>🦋 Start Deep Tech Training</button></div></div></div>); }
 
-// --- [핵심] Voice Chat Logic ---
+// --- [Voice Chat Component] ---
 function VoiceChat({ theme, onBack }) {
     const [chatLog, setChatLog] = useState([]);
     const [isRec, setIsRec] = useState(false);
@@ -68,16 +68,25 @@ function VoiceChat({ theme, onBack }) {
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatLog, isLoading]);
 
+    const getSupportedMimeType = () => {
+        const types = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
+        for (const type of types) if (MediaRecorder.isTypeSupported(type)) return type;
+        return '';
+    };
+
     const startRec = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRef.current = new MediaRecorder(stream);
+            const mimeType = getSupportedMimeType();
+            const options = mimeType ? { mimeType } : {};
+
+            mediaRef.current = new MediaRecorder(stream, options);
             mediaRef.current.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
             mediaRef.current.onstop = sendAudio;
             mediaRef.current.start(200);
             setIsRec(true);
             chunksRef.current = [];
-        } catch { alert("Microphone access needed."); }
+        } catch { alert("마이크 권한이 필요합니다."); }
     };
 
     const stopRec = () => {
@@ -87,14 +96,22 @@ function VoiceChat({ theme, onBack }) {
     };
 
     const sendAudio = async () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        if (chunksRef.current.length === 0) { setIsLoading(false); return; }
+
+        const mimeType = mediaRef.current.mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+
         if (blob.size < 500) {
-            alert("녹음된 목소리가 너무 작습니다. 다시 말씀해 주세요.");
+            alert("목소리가 너무 작습니다. 다시 말씀해 주세요.");
             setIsLoading(false); return;
         }
 
+        let ext = 'webm';
+        if (mimeType.includes('mp4')) ext = 'mp4';
+        else if (mimeType.includes('wav')) ext = 'wav';
+
         const fd = new FormData();
-        fd.append('file', blob, "audio.webm");
+        fd.append('file', blob, `audio.${ext}`);
         fd.append('theme_id', theme.id);
 
         try {
@@ -119,20 +136,21 @@ function VoiceChat({ theme, onBack }) {
             } else {
                 alert("인식 오류: " + (data.error || "알 수 없는 에러"));
             }
-        } catch (err) { alert("서버 연결 실패"); } finally { setIsLoading(false); }
+        } catch (err) { alert("서버 연결 실패"); console.error(err); } finally { setIsLoading(false); }
     };
 
-    const changeSpeed = (msgId, rate) => {
+    const changeAudioSpeed = (msgId, rate) => {
         const audio = audioRefs.current[msgId];
         if (audio) { audio.playbackRate = rate; audio.play(); }
     };
 
-    // 브라우저 TTS (한국어 문장만 읽기)
-    const handleSpeak = (text) => {
+    // [수정] 한글 TTS 속도 조절 및 재생 함수
+    const handleSpeak = (text, rate) => {
         if (!window.speechSynthesis) return;
-        window.speechSynthesis.cancel();
+        window.speechSynthesis.cancel(); // 기존 음성 중단
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'ko-KR';
+        utterance.rate = rate; // 속도 적용
         window.speechSynthesis.speak(utterance);
     };
 
@@ -145,7 +163,7 @@ function VoiceChat({ theme, onBack }) {
                         <div className="bubble">
                             {m.role === 'ai' ? (
                                 <div className="ai-content">
-                                    {/* 딥테크 분석 뱃지 & 툴팁 */}
+                                    {/* 딥테크 분석 뱃지 */}
                                     <div className="tech-badge-container">
                                         <div className="tech-badge">
                                             <span>📡 Signal Analysis</span>
@@ -154,19 +172,31 @@ function VoiceChat({ theme, onBack }) {
                                         <div className="tooltip-icon">ℹ️
                                             <div className="tooltip-text">
                                                 <h4>딥테크 분석 원리</h4>
-                                                <p><b>MFCC:</b> 사용자 음성의 주파수 성분 정밀 분석</p>
-                                                <p><b>DTW & Cosine:</b> 원어민 파형과 시계열 매핑하여 억양 유사도 산출</p>
+                                                <p><b>MFCC:</b> 사용자 음성 파형 정밀 분석</p>
+                                                <p><b>DTW:</b> 시계열 매칭 알고리즘 적용</p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* 문장 및 듣기 버튼 */}
-                                    <div className="main-sent-box">
+                                    {/* [수정됨] 한글 문장 + TTS 배속 버튼들 */}
+                                    <div className="main-sent-section">
                                         <div className="main-sent">
                                             <div className="kor">{m.korean}</div>
                                             <div className="rom">{m.romanized}</div>
                                         </div>
-                                        <button className="btn-text-play" onClick={() => handleSpeak(m.korean)} title="한글만 듣기">🔊</button>
+                                        {/* 문장 옆(아래)에 배속 버튼 배치 */}
+                                        <div className="tts-controls">
+                                            <span className="tts-label">🔊 Listen:</span>
+                                            {[0.5, 0.8, 1.0, 1.2, 1.5, 2.0].map(rate => (
+                                                <button
+                                                    key={rate}
+                                                    onClick={() => handleSpeak(m.korean, rate)}
+                                                    className="btn-tts"
+                                                >
+                                                    {rate}x
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     {m.grammar && <div className="grammar-box"><span>📘 Grammar: {m.grammar}</span></div>}
@@ -176,12 +206,13 @@ function VoiceChat({ theme, onBack }) {
                                         <p className="expl">{m.explanation}</p>
                                     </div>
 
-                                    {/* 오디오 컨트롤 */}
+                                    {/* 전체 오디오(설명 포함) 배속 컨트롤 */}
                                     <div className="audio-control-box">
+                                        <p className="audio-label">🎧 Full Lesson:</p>
                                         <audio ref={el => audioRefs.current[m.id] = el} src={m.audio} controls className="audio-player" />
                                         <div className="speed-btns">
                                             {[0.5, 0.8, 1.0, 1.2, 1.5, 2.0].map(rate => (
-                                                <button key={rate} onClick={() => changeSpeed(m.id, rate)}>{rate}x</button>
+                                                <button key={rate} onClick={() => changeAudioSpeed(m.id, rate)}>{rate}x</button>
                                             ))}
                                         </div>
                                     </div>
@@ -190,7 +221,7 @@ function VoiceChat({ theme, onBack }) {
                         </div>
                     </div>
                 ))}
-                {isLoading && <div className="msg ai"><div className="bubble loading">Analyzing Signal Waveform (DTW)... 📡</div></div>}
+                {isLoading && <div className="msg ai"><div className="bubble loading">Analyzing Signal... 📡</div></div>}
                 <div ref={chatEndRef} />
             </div>
             <div className="chat-ctrl"><button onMouseDown={startRec} onMouseUp={stopRec} className={isRec ? 'rec' : ''}>{isRec ? 'Listening...' : '🎙️ Hold to Speak (English)'}</button></div>
